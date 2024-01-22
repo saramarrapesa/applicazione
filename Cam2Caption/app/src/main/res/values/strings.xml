@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Cam2Caption</string>
+    <string name="subscription_key">60f9a7d86f0545dface0361ca2ef7785</string>
+    <string name="subscription_apiroot">https://image2captionapp.cognitiveservices.azure.com/vision/v1.0</string>
+</resources>
