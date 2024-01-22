@@ -20,8 +20,16 @@ import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.example.cam2caption.ml.Model;
 import com.microsoft.projectoxford.vision.VisionServiceClient;
 import com.microsoft.projectoxford.vision.VisionServiceRestClient;
+
+import org.tensorflow.lite.DataType;
+import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -30,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
     Button picture;
     Button analyze;
 
-    //danno problemi
+    int imageSize = 224;
 
 
     //Declare Vision Client
@@ -58,6 +66,43 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+    public String captioning(Bitmap image) throws IOException {
+        Model model = Model.newInstance(getApplicationContext());
+
+        //creates inputs for reference
+        TensorBuffer inputFeature0 = TensorBuffer.createFixedSize(new int[]{1,224,224,3}, DataType.FLOAT32);
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4 * imageSize * imageSize * 3);
+        byteBuffer.order(ByteOrder.nativeOrder());
+
+        //?
+        TensorBuffer inputFeature1 = TensorBuffer.createFixedSize(new int[]{1, 4096}, DataType.FLOAT32);
+        inputFeature1.loadBuffer(byteBuffer);
+
+        int[] intValues = new int[224 * 224];
+        image.getPixels(intValues, 0, image.getWidth(),0,0,image.getWidth(), image.getHeight());
+
+        //iterate over pixels
+        int pixel = 0;
+        for(int i = 0; i < imageSize; i++){
+            for(int j = 0; j < imageSize; j++){
+                int val = intValues[pixel++]; // RGB
+                byteBuffer.putFloat(((val >> 16) & 0xFF) * (1.f / 255.f));
+                byteBuffer.putFloat(((val >> 8) & 0xFF) * (1.f / 255.f));
+                byteBuffer.putFloat((val & 0xFF) * (1.f / 255.f));
+            }
+        }
+        inputFeature0.loadBuffer(byteBuffer);
+
+        //qui si blocca l'app
+        Model.Outputs outputs = model.process(inputFeature0, inputFeature1);
+        TensorBuffer outputFeature0 = outputs.getOutputFeature0AsTensorBuffer();
+
+        //Da completare
+        String caption = "" ;
+
+        return caption;
+    }
         private final ActivityResultLauncher<Intent> someActivityResultLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 new ActivityResultCallback<ActivityResult>() {
@@ -70,9 +115,18 @@ public class MainActivity extends AppCompatActivity {
                             int dimension = Math.min(image.getWidth(), image.getHeight());
                             image = ThumbnailUtils.extractThumbnail(image, dimension, dimension);
                             imageView.setImageBitmap(image);
-
+                            image = Bitmap.createScaledBitmap(image, imageSize, imageSize, false);
+                            Bitmap finalImage = image;
+                            analyze.setOnClickListener(v -> {
+                                try {
+                                    caption.setText(captioning(finalImage));
+                                } catch (IOException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            });
                         }
                     }
+
                 });
 
     }
